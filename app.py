@@ -8,7 +8,7 @@ import time
 import visuals
 
 # --- CONFIGURATION ---
-st.set_page_config(page_title="Agentic Readiness Auditor Pro", page_icon="🕵️‍♂️", layout="wide")
+st.set_page_config(page_title=" AI Agentic Readiness Auditor Pro", page_icon="🕵️‍♂️", layout="wide")
 
 # Sidebar
 st.sidebar.title("🕵️‍♂️ Audit Controls")
@@ -183,19 +183,19 @@ def perform_audit(url, api_key):
 
 # --- UI LAYOUT ---
 st.title("🤖 Agentic Readiness Auditor Pro")
-st.markdown("### The Standard for Future Commerce")
-st.info("Check if your client's website is ready for the **Agent Economy** (Mastercard/Visa Agents, ChatGPT, Gemini).")
+st.markdown("### The Standard for Agentic Commerce approch")
+st.info("Check if your Website is ready for the **AI Agentic Readiness ** (Mastercard/Visa Agents, ChatGPT, Gemini, Google AP2).")
 
-url_input = st.text_input("Enter Client Website URL", placeholder="https://www.example-hotel.com")
+url_input = st.text_input("Website URL", placeholder="https://www.example.com")
 
-if st.button("🚀 Run Full Audit"):
+if st.button("👉 Run AI Audit"):
     if not api_key or not url_input:
         st.error("Please provide both API Key and URL.")
     else:
         audit_data, recs, ai_summary = perform_audit(url_input, api_key)
         
         if audit_data:
-            st.success("✅ Done! Audit Complete and Report Generated Successfully.")
+            st.success("✅ Done! Audit and Report Generated Successfully.")
             # --- DISPLAY GRAPHICAL DASHBOARD ---
             visuals.display_dashboard(audit_data)
 
