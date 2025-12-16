@@ -5,6 +5,7 @@ import google.generativeai as genai
 import pandas as pd
 import io
 import time
+import visuals
 
 # --- CONFIGURATION ---
 st.set_page_config(page_title="Agentic Readiness Auditor Pro", page_icon="🕵️‍♂️", layout="wide")
@@ -188,22 +189,8 @@ if st.button("🚀 Run Full Audit"):
         audit_data, recs, ai_summary = perform_audit(url_input, api_key)
         
         if audit_data:
-            # --- DISPLAY RESULTS ---
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.subheader("1. Technology Stack")
-                st.code(audit_data['stack'])
-                
-                st.subheader("2. Security Gates")
-                st.json(audit_data['gates'])
-
-            with col2:
-                st.subheader("3. Agentic Data (Schema)")
-                st.metric("Schema Objects Found", audit_data['schema_count'])
-                st.caption("Manifest Status: " + audit_data['manifest'])
-                
-            st.divider()
+          # --- DISPLAY GRAPHICAL DASHBOARD ---
+        visuals.display_dashboard(audit_data)
             
             st.subheader("📝 Executive Summary")
             st.write(ai_summary)
