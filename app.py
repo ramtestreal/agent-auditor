@@ -83,7 +83,7 @@ def check_security_gates(url):
         elif s3.status_code == 200:
             gates['sitemap.xml'] = "Found (sitemap_index.xml)"
 		elif s4.status_code == 200:
-            gates['sitemap.xml'] = "Found (wp-sitemap.xml.xml)"
+            gates['sitemap.xml'] = "Found (wp-sitemap.xml)"
         else:
             gates['sitemap.xml'] = "Missing"
     except:
