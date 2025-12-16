@@ -235,37 +235,26 @@ if 'recs' not in st.session_state:
     st.session_state['recs'] = None
 if 'ai_summary' not in st.session_state:
     st.session_state['ai_summary'] = None
-if 'url_history' not in st.session_state:
-    st.session_state['url_history'] = []
+if 'current_url' not in st.session_state:
+    st.session_state['current_url'] = ""
 
-st.title("🤖 Agentic Readiness Auditor Pro")
+st.title("🤖 AI Agentic Readiness Auditor Pro")
 st.markdown("### The Standard for Future Commerce")
-st.info("Check if your client's website is ready for the **Agent Economy** (Mastercard/Visa Agents, ChatGPT, Gemini).")
+st.info("Check if your client's website is ready for the **Agent Economy** (AI Agents, ChatGPT, Gemini, Google AP2, Grok, Claude).")
 
-# 2. The Smart Input Section (Dropdown + Text)
-# We show a dropdown of history, but allow typing a new one
-selected_history = st.selectbox(
-    "📜 Recent Audits (Select one or type new below):", 
-    options=["Type a new URL..."] + st.session_state['url_history']
-)
-
-if selected_history != "Type a new URL...":
-    default_url = selected_history
-else:
-    default_url = ""
-
-url_input = st.text_input("Enter Client Website URL", value=default_url, placeholder="https://www.example-hotel.com")
+# 2. The Input Section (Clean & Simple)
+# We link the value to session_state so it doesn't vanish on refresh
+url_input = st.text_input("Website URL", value=st.session_state['current_url'], placeholder="https://www.domain.com")
 
 # 3. The "Run" Logic
-if st.button("🚀 Run Full Audit"):
+if st.button("Run Audit"):
     if not api_key or not url_input:
         st.error("Please provide both API Key and URL.")
     else:
-        # Save to History if new
-        if url_input not in st.session_state['url_history']:
-            st.session_state['url_history'].insert(0, url_input) # Add to top of list
-            
-        # Run the Audit and SAVE to Session State (Memory)
+        # Save URL to memory so it persists
+        st.session_state['current_url'] = url_input
+        
+        # Run the Audit
         data, recommendations, summary = perform_audit(url_input, api_key)
         
         if data:
@@ -273,7 +262,7 @@ if st.button("🚀 Run Full Audit"):
             st.session_state['recs'] = recommendations
             st.session_state['ai_summary'] = summary
 
-# 4. Display Logic (Reads from Memory, so it doesn't vanish!)
+# 4. Display Logic (Reads from Memory)
 if st.session_state['audit_data']:
     st.success("✅ Audit Complete! Report Loaded.")
     
@@ -319,11 +308,10 @@ if st.session_state['audit_data']:
             mime="application/vnd.ms-excel"
         )
     with col2:
-        # The "New Audit" Button
+        # The "New Audit" Button (Clears everything)
         if st.button("🔄 Start New Audit"):
-            # Clear the memory
             st.session_state['audit_data'] = None
             st.session_state['recs'] = None
             st.session_state['ai_summary'] = None
-            st.rerun() # Refresh the app
-            
+            st.session_state['current_url'] = "" # Clear the URL box
+            st.rerun()
