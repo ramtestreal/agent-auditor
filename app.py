@@ -143,9 +143,25 @@ def perform_audit(url, api_key):
         schemas = soup.find_all('script', type='application/ld+json')
         schema_sample = schemas[0].string[:500] if schemas else "None"
         
-        # 4. AI Manifest
-        manifest_res = requests.get(f"{url.rstrip('/')}/.well-known/ai-plugin.json", timeout=3)
-        manifest_status = "Found" if manifest_res.status_code == 200 else "Missing"
+        # 4. Manifest / Identity Check (FIXED LOGIC)
+        status_text.text("Verifying Identity Files...")
+        domain = url.rstrip('/')
+        
+        # Check A: OpenAI Plugin
+        plugin_res = requests.get(f"{domain}/.well-known/ai-plugin.json", timeout=3)
+        # Check B: Standard Web Manifest (Root)
+        web_manifest_res = requests.get(f"{domain}/manifest.json", timeout=3)
+        # Check C: HTML Link Tag
+        html_manifest = soup.find("link", rel="manifest")
+        
+        if plugin_res.status_code == 200:
+            manifest_status = "Found (AI Plugin)"
+        elif web_manifest_res.status_code == 200:
+            manifest_status = "Found (Web Manifest)"
+        elif html_manifest:
+            manifest_status = "Found (Linked in HTML)"
+        else:
+            manifest_status = "Missing"
 
         # Compile Data
         audit_data = {
@@ -160,20 +176,29 @@ def perform_audit(url, api_key):
         # Generate Recs
         recs = generate_recommendations(audit_data)
         
-        # 5. Gemini Analysis
-        status_text.text("Generative AI is analyzing the report...")
+        # 5. Gemini Analysis (SMARTER PROMPT)
+        status_text.text("Generative AI is analyzing the business type...")
         prompt = f"""
-        Analyze this technical audit for 'Agentic Commerce Readiness'.
+        You are a Senior Technical Consultant. Analyze this website audit for 'Agentic Readiness'.
+        
         Target URL: {url}
         Tech Stack: {stack}
         Security Gates: {gates}
         Schema Found: {len(schemas)} items.
-        Manifest: {manifest_status}
+        Manifest Status: {manifest_status}
         
-        Write a professional Executive Summary (3 sentences) explaining if an AI Agent can buy from this site or not.
-        Then, explain the business impact of the missing elements.
+        YOUR TASK:
+        1. First, deduce the WEBSITE TYPE and its services / products delevering based on the URL and Stack (e.g., E-commerce, SaaS, Blog, Corporate Service, or Portfolio etc..).
+        2. Write an Executive Summary (3-4 sentences) tailored to that specific type.
+           - IF E-COMMERCE: Focus on "autonomous transactions" and "buying".
+           - IF NON-COMMERCE (e.g., Law Firm, SaaS, Blog et..): Focus on "content retrieval", "service discovery", and "accurate answering". DO NOT use words like "Purchase" or "Checkout" if it is not a store.
+        3. Explain the Business Impact of missing elements using language appropriate for the detected industry.
         """
+        
         ai_summary = model.generate_content(prompt).text
+        
+        # Clear status
+        status_text.empty()
         
         return audit_data, recs, ai_summary
 
