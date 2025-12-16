@@ -4,7 +4,6 @@ import plotly.graph_objects as go
 def calculate_score(audit_data):
     """Calculates a score out of 100 based on findings"""
     score = 0
-    total_checks = 5
     
     # 1. Robots.txt
     if audit_data['gates']['robots.txt'] == "Found":
@@ -28,20 +27,41 @@ def calculate_score(audit_data):
         
     return score
 
+def get_score_color(score):
+    """Returns color hex code based on score for the number text"""
+    if score <= 20:
+        return "#d90429" # Deep Red
+    elif score <= 40:
+        return "#ef233c" # Red
+    elif score <= 60:
+        return "#ff8c00" # Dark Orange
+    elif score <= 80:
+        return "#ffb703" # Amber
+    else:
+        return "#008000" # Green
+
 def create_gauge_chart(score):
-    """Creates the rounded gauge chart"""
+    """Creates a beautified rounded gauge chart with a 5-step gradient"""
+    score_color = get_score_color(score)
+
     fig = go.Figure(go.Indicator(
         mode = "gauge+number",
         value = score,
+        number = {'font': {'color': score_color, 'size': 40}}, # Color and size the score number
         domain = {'x': [0, 1], 'y': [0, 1]},
-        title = {'text': "Agentic Readiness Score"},
+        title = {'text': "Agentic Readiness Score", 'font': {'size': 24}},
         gauge = {
-            'axis': {'range': [None, 100]},
-            'bar': {'color': "black"},
+            'axis': {'range': [None, 100], 'tickwidth': 1, 'tickcolor': "darkblue"},
+            'bar': {'color': score_color, 'thickness': 0.2}, # The tip of the bar matches the score color
+            'bgcolor': "white",
+            'borderwidth': 2,
+            'bordercolor': "gray",
             'steps': [
-                {'range': [0, 50], 'color': "#ff4b4b"},  # Red
-                {'range': [50, 80], 'color': "#ffa421"}, # Orange
-                {'range': [80, 100], 'color': "#0df05e"} # Green
+                {'range': [0, 20], 'color': "#d90429"}, # Deep Red
+                {'range': [20, 40], 'color': "#ef233c"}, # Red
+                {'range': [40, 60], 'color': "#ff8c00"}, # Dark Orange
+                {'range': [60, 80], 'color': "#ffb703"}, # Amber
+                {'range': [80, 100], 'color': "#008000"} # Green
             ],
             'threshold': {
                 'line': {'color': "black", 'width': 4},
@@ -50,7 +70,8 @@ def create_gauge_chart(score):
             }
         }
     ))
-    fig.update_layout(height=300, margin=dict(l=20, r=20, t=50, b=20))
+    # Add a sleek layout
+    fig.update_layout(height=350, margin=dict(l=30, r=30, t=80, b=30), font={'family': "Arial"})
     return fig
 
 def display_dashboard(audit_data):
@@ -69,11 +90,11 @@ def display_dashboard(audit_data):
         st.markdown("### 🏗️ Tech Stack Detected")
         st.info(f"{audit_data['stack']}")
         if score < 50:
-            st.error("❌ High Risk: Agents will ignore this site.")
+            st.error("❌ High Risk: Agents will likely ignore this site.")
         elif score < 80:
-            st.warning("⚠️ Partial Access: Agents might struggle.")
+            st.warning("⚠️ Partial Access: Agents might struggle to purchase.")
         else:
-            st.success("✅ Certified: Agentic Ready!")
+            st.success("✅ Certified: Ready for Agentic Commerce!")
 
     st.divider()
 
@@ -117,18 +138,18 @@ def display_dashboard(audit_data):
         st.markdown("#### 🧠 Semantic Data (Schema)")
         if audit_data['schema_count'] > 0:
             st.metric(label="Schema Objects", value=audit_data['schema_count'], delta="Active")
-            st.progress(100, text="Data is readable")
+            st.progress(100, text="Data is readable by agents")
         else:
             st.metric(label="Schema Objects", value="0", delta="- Critical")
-            st.progress(0, text="Data is invisible")
+            st.progress(0, text="Data is invisible to agents")
             
     with c2:
         st.markdown("#### 🆔 App Identity (Manifest)")
         if "Found" in audit_data['manifest']:
             st.metric(label="Manifest Status", value="Verified", delta="Active")
-            st.progress(100, text="App-like experience")
+            st.progress(100, text="Offers an app-like experience")
         else:
             st.metric(label="Manifest Status", value="Missing", delta="- Warning")
-            st.progress(0, text="Not installable")
+            st.progress(0, text="Not installable as an app")
 
     st.divider()
