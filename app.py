@@ -189,9 +189,10 @@ if st.button("🚀 Run Full Audit"):
         audit_data, recs, ai_summary = perform_audit(url_input, api_key)
         
         if audit_data:
-          # --- DISPLAY GRAPHICAL DASHBOARD ---
-        visuals.display_dashboard(audit_data)
-            
+        # --- DISPLAY GRAPHICAL DASHBOARD ---
+            visuals.display_dashboard(audit_data)
+
+            st.divider()  
             st.subheader("📝 Executive Summary")
             st.write(ai_summary)
             
