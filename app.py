@@ -240,7 +240,7 @@ if 'current_url' not in st.session_state:
 
 st.title("🤖 AI Agentic Readiness Auditor Pro")
 st.markdown("### The Standard for Future Commerce")
-st.info("Check if your client's website is ready for the **Agent Economy** (AI Agents, ChatGPT, Gemini, Google AP2, Grok, Claude).")
+st.info("Check Your website is ready for the **AI Agents, LLMs Discoverable & Retrievable** (ChatGPT, Gemini, Google AP2, Grok, Claude, Llama).")
 
 # 2. The Input Section (Clean & Simple)
 # We link the value to session_state so it doesn't vanish on refresh
@@ -302,7 +302,7 @@ if st.session_state['audit_data']:
     col1, col2 = st.columns(2)
     with col1:
         st.download_button(
-            label="📥 Download Excel Report",
+            label="📥 Download Report: Excel",
             data=buffer,
             file_name=f"Agentic_Audit_{int(time.time())}.xlsx",
             mime="application/vnd.ms-excel"
