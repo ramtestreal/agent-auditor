@@ -194,7 +194,8 @@ if st.button("🚀 Run Full Audit"):
         audit_data, recs, ai_summary = perform_audit(url_input, api_key)
         
         if audit_data:
-        # --- DISPLAY GRAPHICAL DASHBOARD ---
+            st.success("✅ Done! Audit Complete and Report Generated Successfully.")
+            # --- DISPLAY GRAPHICAL DASHBOARD ---
             visuals.display_dashboard(audit_data)
 
             st.divider()  
