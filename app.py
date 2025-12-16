@@ -130,6 +130,17 @@ def perform_audit(url, api_key):
         response = requests.get(url, headers=headers, timeout=10)
         soup = BeautifulSoup(response.content, 'html.parser')
         
+        # --- NEW: EXTRACT SITE CONTEXT (READ THE PAGE) ---
+        # We grab the title, meta description, and first 2000 characters of text
+        page_title = soup.title.string if soup.title else "No Title"
+        meta_desc = soup.find("meta", attrs={"name": "description"})
+        meta_desc_text = meta_desc["content"] if meta_desc else "No Description"
+        # Get visible text from body (headers, menus, paragraphs) to understand business type
+        body_text = soup.body.get_text(separator=' ', strip=True)[:2000] if soup.body else ""
+        
+        site_context = f"Title: {page_title}\nDescription: {meta_desc_text}\nPage Content: {body_text}"
+        # -------------------------------------------------
+
         # 1. Tech Stack
         status_text.text("Detecting Technology Stack...")
         stack = detect_tech_stack(soup, response.headers)
@@ -143,15 +154,12 @@ def perform_audit(url, api_key):
         schemas = soup.find_all('script', type='application/ld+json')
         schema_sample = schemas[0].string[:500] if schemas else "None"
         
-        # 4. Manifest / Identity Check (FIXED LOGIC)
+        # 4. Manifest / Identity Check
         status_text.text("Verifying Identity Files...")
         domain = url.rstrip('/')
         
-        # Check A: OpenAI Plugin
         plugin_res = requests.get(f"{domain}/.well-known/ai-plugin.json", timeout=3)
-        # Check B: Standard Web Manifest (Root)
         web_manifest_res = requests.get(f"{domain}/manifest.json", timeout=3)
-        # Check C: HTML Link Tag
         html_manifest = soup.find("link", rel="manifest")
         
         if plugin_res.status_code == 200:
@@ -176,30 +184,39 @@ def perform_audit(url, api_key):
         # Generate Recs
         recs = generate_recommendations(audit_data)
         
-        # 5. Gemini Analysis (SMARTER PROMPT)
-        status_text.text("Generative AI is analyzing the business type...")
+        # 5. Gemini Analysis (CONTEXT-AWARE PROMPT)
+        status_text.text("Generative AI is reading the content to identify business type...")
         prompt = f"""
-        You are a Senior Technical Consultant. Analyze this website audit for 'Agentic Readiness'.
+        You are a Senior Technical Consultant. Analyze this website for 'Agentic Readiness'.
         
-        Target URL: {url}
-        Tech Stack: {stack}
-        Security Gates: {gates}
-        Schema Found: {len(schemas)} items.
-        Manifest Status: {manifest_status}
+        TARGET DATA:
+        - URL: {url}
+        - Tech Stack: {stack}
+        - Security Gates: {gates}
+        - Schema Found: {len(schemas)} items.
+        - Manifest Status: {manifest_status}
+        
+        WEBSITE CONTENT CONTEXT (Read this to identify the industry):
+        {site_context}
         
         YOUR TASK:
-        1. First, deduce the WEBSITE TYPE and its services / products delevering based on the URL and Stack (e.g., E-commerce, SaaS, Blog, Corporate Service, or Portfolio etc..).
-        2. Write an Executive Summary (3-4 sentences) tailored to that specific type.
-           - IF E-COMMERCE: Focus on "autonomous transactions" and "buying".
-           - IF NON-COMMERCE (e.g., Law Firm, SaaS, Blog et..): Focus on "content retrieval", "service discovery", and "accurate answering". DO NOT use words like "Purchase" or "Checkout" if it is not a store.
-        3. Explain the Business Impact of missing elements using language appropriate for the detected industry.
+        1. IDENTIFY THE BUSINESS TYPE: Use the 'WEBSITE CONTENT CONTEXT' above. 
+           - Is it B2B, SaaS, E-commerce, Training/Education, Blog, or Corporate Service? 
+           - NOTE: Even if it uses WooCommerce, if the content is about "Training" or "Services", treat it as Education/Service, NOT a generic store.
+           
+        2. WRITE EXECUTIVE SUMMARY (3 sentences): 
+           - Tailor the language to the business type identified.
+           - For E-commerce: Use terms like "autonomous buying" and "transactions".
+           - For B2B/Services: Use terms like "service discovery", "lead qualification", and "content retrieval".
+           - For SaaS/Training: Use terms like "user onboarding" or "knowledge access".
+           
+        3. EXPLAIN BUSINESS IMPACT:
+           - Explain why missing elements (like ai.txt or schema) hurt *this specific* business type.
         """
         
         ai_summary = model.generate_content(prompt).text
         
-        # Clear status
         status_text.empty()
-        
         return audit_data, recs, ai_summary
 
     except Exception as e:
