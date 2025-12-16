@@ -47,9 +47,9 @@ def create_gauge_chart(score):
     fig = go.Figure(go.Indicator(
         mode = "gauge+number",
         value = score,
-        number = {'font': {'color': score_color, 'size': 40}}, # Color and size the score number
+        number = {'font': {'color': score_color, 'size': 60}}, # Color and size the score number
         domain = {'x': [0, 1], 'y': [0, 1]},
-        title = {'text': "Agentic Readiness Score", 'font': {'size': 24}},
+        title = {'text': "AI Agentic Readiness Score", 'font': {'size': 22}},
         gauge = {
             'axis': {'range': [None, 100], 'tickwidth': 1, 'tickcolor': "darkblue"},
             'bar': {'color': score_color, 'thickness': 0.2}, # The tip of the bar matches the score color
@@ -64,8 +64,8 @@ def create_gauge_chart(score):
                 {'range': [80, 100], 'color': "#008000"} # Green
             ],
             'threshold': {
-                'line': {'color': "black", 'width': 4},
-                'thickness': 0.75,
+                'line': {'color': "gray", 'width': 5},
+                'thickness': 0.80,
                 'value': score
             }
         }
@@ -89,12 +89,14 @@ def display_dashboard(audit_data):
     with col2:
         st.markdown("### 🏗️ Tech Stack Detected")
         st.info(f"{audit_data['stack']}")
+        
+        # Universal Messages for All Industries (B2B, B2C, SaaS, etc.)
         if score < 50:
-            st.error("❌ High Risk: Agents will likely ignore this site.")
+            st.error("❌ High Risk: Your digital presence is invisible to AI Agents/LLMs.")
         elif score < 80:
-            st.warning("⚠️ Partial Access: Agents might struggle to purchase.")
+            st.warning("⚠️ Partial Readiness: Agents can 'see' you, but cannot effectively 'act'.")
         else:
-            st.success("✅ Certified: Ready for Agentic Commerce!")
+            st.success("✅ Congratulations: Fully Discoverable and Retrievable by AI Agents/LLMs")
 
     st.divider()
 
