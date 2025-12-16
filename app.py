@@ -226,59 +226,104 @@ def perform_audit(url, api_key):
         st.error(f"Audit Failed: {str(e)}")
         return None, None, None
 
-# --- UI LAYOUT ---
+ # --- UI LAYOUT & STATE MANAGEMENT ---
+
+# 1. Initialize "Memory" (Session State)
+if 'audit_data' not in st.session_state:
+    st.session_state['audit_data'] = None
+if 'recs' not in st.session_state:
+    st.session_state['recs'] = None
+if 'ai_summary' not in st.session_state:
+    st.session_state['ai_summary'] = None
+if 'url_history' not in st.session_state:
+    st.session_state['url_history'] = []
+
 st.title("🤖 Agentic Readiness Auditor Pro")
-st.markdown("### The Standard for Agentic Commerce approch")
-st.info("Check if your Website is ready for the **AI Agentic Readiness ** (Mastercard/Visa Agents, ChatGPT, Gemini, Google AP2).")
+st.markdown("### The Standard for Future Commerce")
+st.info("Check if your client's website is ready for the **Agent Economy** (Mastercard/Visa Agents, ChatGPT, Gemini).")
 
-url_input = st.text_input("Website URL", placeholder="https://www.example.com")
+# 2. The Smart Input Section (Dropdown + Text)
+# We show a dropdown of history, but allow typing a new one
+selected_history = st.selectbox(
+    "📜 Recent Audits (Select one or type new below):", 
+    options=["Type a new URL..."] + st.session_state['url_history']
+)
 
-if st.button("👉 Run AI Audit"):
+if selected_history != "Type a new URL...":
+    default_url = selected_history
+else:
+    default_url = ""
+
+url_input = st.text_input("Enter Client Website URL", value=default_url, placeholder="https://www.example-hotel.com")
+
+# 3. The "Run" Logic
+if st.button("🚀 Run Full Audit"):
     if not api_key or not url_input:
         st.error("Please provide both API Key and URL.")
     else:
-        audit_data, recs, ai_summary = perform_audit(url_input, api_key)
+        # Save to History if new
+        if url_input not in st.session_state['url_history']:
+            st.session_state['url_history'].insert(0, url_input) # Add to top of list
+            
+        # Run the Audit and SAVE to Session State (Memory)
+        data, recommendations, summary = perform_audit(url_input, api_key)
         
-        if audit_data:
-            st.success("✅ Done! Audit and Report Generated Successfully.")
-            # --- DISPLAY GRAPHICAL DASHBOARD ---
-            visuals.display_dashboard(audit_data)
+        if data:
+            st.session_state['audit_data'] = data
+            st.session_state['recs'] = recommendations
+            st.session_state['ai_summary'] = summary
 
-            st.divider()  
-            st.subheader("📝 Executive Summary")
-            st.write(ai_summary)
+# 4. Display Logic (Reads from Memory, so it doesn't vanish!)
+if st.session_state['audit_data']:
+    st.success("✅ Audit Complete! Report Loaded.")
+    
+    # --- DISPLAY GRAPHICAL DASHBOARD ---
+    visuals.display_dashboard(st.session_state['audit_data'])
+    
+    # --- DOWNLOAD BUTTONS & TEXT REPORT ---
+    st.divider()
+    
+    st.subheader("📝 Executive Summary")
+    st.write(st.session_state['ai_summary'])
+    
+    st.subheader("🔧 Priority Recommendations")
+    for rec in st.session_state['recs']:
+        st.warning(rec)
+        
+    # --- EXCEL REPORT GENERATION ---
+    report_dict = {
+        "Metric": ["Target URL", "Tech Stack", "Robots.txt Status", "AI.txt Status", "Schema Objects", "AI Manifest"],
+        "Status": [
+            st.session_state['audit_data']['url'],
+            st.session_state['audit_data']['stack'],
+            st.session_state['audit_data']['gates']['robots.txt'],
+            st.session_state['audit_data']['gates']['ai.txt'],
+            f"{st.session_state['audit_data']['schema_count']} found",
+            st.session_state['audit_data']['manifest']
+        ]
+    }
+    df_report = pd.DataFrame(report_dict)
+    
+    buffer = io.BytesIO()
+    with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+        df_report.to_excel(writer, sheet_name='Audit Summary', index=False)
+        df_recs = pd.DataFrame(st.session_state['recs'], columns=["Actionable Recommendations"])
+        df_recs.to_excel(writer, sheet_name='Action Plan', index=False)
+        
+    col1, col2 = st.columns(2)
+    with col1:
+        st.download_button(
+            label="📥 Download Excel Report",
+            data=buffer,
+            file_name=f"Agentic_Audit_{int(time.time())}.xlsx",
+            mime="application/vnd.ms-excel"
+        )
+    with col2:
+        # The "New Audit" Button
+        if st.button("🔄 Start New Audit"):
+            # Clear the memory
+            st.session_state['audit_data'] = None
+            st.session_state['recs'] = None
+            st.session_state['ai_summary'] = None
+            st.rerun() # Refresh the app
             
-            st.subheader("🔧 Priority Recommendations")
-            for rec in recs:
-                st.warning(rec)
-                
-            # --- EXCEL REPORT GENERATION ---
-            # Create a Pandas DataFrame for the report
-            report_dict = {
-                "Metric": ["Target URL", "Tech Stack", "Robots.txt Status", "AI.txt Status", "Schema Objects", "AI Manifest"],
-                "Status": [
-                    audit_data['url'],
-                    audit_data['stack'],
-                    audit_data['gates']['robots.txt'],
-                    audit_data['gates']['ai.txt'],
-                    f"{audit_data['schema_count']} found",
-                    audit_data['manifest']
-                ]
-            }
-            df_report = pd.DataFrame(report_dict)
-            
-            # Convert to Excel in memory
-            buffer = io.BytesIO()
-            with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-                df_report.to_excel(writer, sheet_name='Audit Summary', index=False)
-                # Write Recommendations to a second sheet
-                df_recs = pd.DataFrame(recs, columns=["Actionable Recommendations"])
-                df_recs.to_excel(writer, sheet_name='Action Plan', index=False)
-                
-            # Download Button
-            st.download_button(
-                label="📥 Download Professional Audit Report (Excel)",
-                data=buffer,
-                file_name=f"Agentic_Audit_{int(time.time())}.xlsx",
-                mime="application/vnd.ms-excel"
-            )
