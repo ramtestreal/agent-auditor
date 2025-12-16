@@ -61,12 +61,27 @@ def check_security_gates(url):
         gates['robots.txt'] = "Error"
         gates['ai_access'] = "Unknown"
 
-    # 2. Sitemap
+     # 2. Sitemap (Checks both sitemap.xml and sitemaps.xml)
     try:
-        s = requests.get(f"{domain}/sitemap.xml", timeout=3)
-        gates['sitemap.xml'] = "Found" if s.status_code == 200 else "Missing"
+        # Check standard singular version
+        s1 = requests.get(f"{domain}/sitemap.xml", timeout=3)
+        
+        # Check plural version (common in SEO plugins)
+        s2 = requests.get(f"{domain}/sitemaps.xml", timeout=3)
+        
+        # Check index version (common in Yoast/RankMath)
+        s3 = requests.get(f"{domain}/sitemap_index.xml", timeout=3)
+
+        if s1.status_code == 200:
+            gates['sitemap.xml'] = "Found (Standard)"
+        elif s2.status_code == 200:
+            gates['sitemap.xml'] = "Found (sitemaps.xml)"
+        elif s3.status_code == 200:
+            gates['sitemap.xml'] = "Found (sitemap_index.xml)"
+        else:
+            gates['sitemap.xml'] = "Missing"
     except:
-        gates['sitemap.xml'] = "Error"
+        gates['sitemap.xml'] = "Error checking"
 
     # 3. ai.txt (The new standard)
     try:
