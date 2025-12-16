@@ -195,25 +195,26 @@ def perform_audit(url, api_key):
         WEBSITE CONTEXT:
         {site_context}
         
-        YOUR TASK:
-        1. Detect the Business Type (E-commerce, SaaS, B2B, Blog, etc.) based on the context.
+       YOUR TASK:
+        1. IDENTIFY THE BUSINESS TYPE: Use the 'WEBSITE CONTEXT' above. 
+           - Is it B2B, SaaS, E-commerce, Training/Education, local business, shops, Blog, or Corporate Service? 
+           - NOTE: Even if it uses WooCommerce, if the content is about "Training" or "Services" or "product", treat it as Education/Service, NOT a generic store.
         
         2. GENERATE A REPORT IN STRICT MARKDOWN FORMAT:
         
         ### 1. Executive Summary
         - Write exactly 3 short, punchy sentences.
         - Use **Bold** for key terms (e.g., **autonomous buying**, **lead qualification**).
-        - Tailor the language to the business type identified:
-        	- For E-commerce: Use terms like "autonomous buying" and "transactions".
-           - For B2B/Services: Use terms like "service discovery", "lead qualification", and "content retrieval".
-           - For SaaS/Training: Use terms like "user onboarding" or "knowledge access".
+        - Tailor the language:
+            - If Store: Focus on lost sales/transactions.
+            - If SaaS/B2B/Services/Solutions: Focus on lost leads/discovery.
             
         ### 2. Business Impact Analysis
         - Provide exactly 3 Bullet Points.
         - Each bullet must start with a **Bold Issue** (e.g., **Missing ai.txt:**).
-        - Keep each bullet under 25 words. Focus on the money/risk.
+        - Keep each bullet under 37 words. Focus on the money/risk.
         
-        Do NOT write long paragraphs. Be concise.
+        Paragraphs should be chunked. Be clear and concise.
         """
         
         ai_summary = model.generate_content(prompt).text
