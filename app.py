@@ -193,13 +193,27 @@ def perform_audit(url, api_key):
         - Schema Found: {len(schemas)} items.
         - Manifest Status: {manifest_status}
         
-        WEBSITE CONTENT CONTEXT:
+        WEBSITE CONTEXT:
         {site_context}
         
         YOUR TASK:
-        1. IDENTIFY THE BUSINESS TYPE: Use the 'WEBSITE CONTENT CONTEXT' above. 
-        2. WRITE EXECUTIVE SUMMARY (3 sentences): Tailor language to business type.
-        3. EXPLAIN BUSINESS IMPACT: Explain why missing elements hurt this specific business type.
+        1. Detect the Business Type (E-commerce, SaaS, B2B, Blog, etc.) based on the context.
+        
+        2. GENERATE A REPORT IN STRICT MARKDOWN FORMAT:
+        
+        ### 1. Executive Summary
+        - Write exactly 3 short, punchy sentences.
+        - Use **Bold** for key terms (e.g., **autonomous buying**, **lead qualification**).
+        - Tailor the language:
+            - If Store: Focus on lost sales/transactions.
+            - If SaaS/B2B: Focus on lost leads/discovery.
+            
+        ### 2. Business Impact Analysis
+        - Provide in Bullet Points with brief of your technical observations.
+        - Each bullet must start with a **Bold Issue** (e.g., **Missing ai.txt:**).
+        - Keep each bullet upto 38 words length. Focus on the money/risk.
+        
+        Do NOT write paragraphs too long. Delivering messages that are easy to understand, thorough but brief, and focused on essential information.
         """
         
         ai_summary = model.generate_content(prompt).text
