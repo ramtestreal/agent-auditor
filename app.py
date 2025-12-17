@@ -10,7 +10,7 @@ import visuals  # Ensure visuals.py exists in your repo
 # --- CONFIGURATION ---
 st.set_page_config(page_title="Agentic Readiness Auditor Pro", page_icon="🕵️‍♂️", layout="wide")
 
-# --- SESSION STATE INITIALIZATION (Crucial for Memory) ---
+# --- SESSION STATE INITIALIZATION ---
 if 'audit_data' not in st.session_state:
     st.session_state['audit_data'] = None
 if 'recs' not in st.session_state:
@@ -27,7 +27,6 @@ def detect_tech_stack(soup, headers):
     stack = []
     html = str(soup)
     
-    # Check Meta Generators & Script signatures
     if "wp-content" in html or "WordPress" in str(soup.find("meta", attrs={"name": "generator"})):
         stack.append("WordPress")
     if "cdn.shopify.com" in html or "Shopify" in html:
@@ -41,7 +40,6 @@ def detect_tech_stack(soup, headers):
     if "Wix" in html or "wix-warmup-data" in html:
         stack.append("Wix")
         
-    # Check Headers
     if "X-Powered-By" in headers:
         stack.append(f"Server: {headers['X-Powered-By']}")
         
@@ -68,7 +66,7 @@ def check_security_gates(url):
         gates['robots.txt'] = "Error"
         gates['ai_access'] = "Unknown"
 
-    # 2. Sitemap (Checks standard, plural, index, and WP native)
+    # 2. Sitemap
     try:
         s1 = requests.get(f"{domain}/sitemap.xml", timeout=3)
         s2 = requests.get(f"{domain}/sitemaps.xml", timeout=3)
@@ -88,7 +86,7 @@ def check_security_gates(url):
     except:
         gates['sitemap.xml'] = "Error checking"
 
-    # 3. ai.txt (The new standard)
+    # 3. ai.txt
     try:
         a = requests.get(f"{domain}/ai.txt", timeout=3)
         gates['ai.txt'] = "Found (Future Proof!)" if a.status_code == 200 else "Missing"
@@ -103,13 +101,10 @@ def generate_recommendations(audit_data):
     
     if "BLOCKED" in audit_data['gates']['ai_access']:
         recs.append("CRITICAL: Update robots.txt to whitelist 'GPTBot', 'CCBot', and 'Google-Extended'.")
-    
     if audit_data['schema_count'] == 0:
         recs.append("HIGH PRIORITY: Implement JSON-LD Schema. The Agent cannot see your products/prices.")
-        
     if "Missing" in audit_data['gates']['ai.txt']:
         recs.append("OPTIMIZATION: Create an 'ai.txt' file to explicitly grant permission to specific AI models.")
-        
     if "Next.js" in audit_data['stack'] and audit_data['schema_count'] == 0:
         recs.append("TECH FIX: Your Next.js site might be client-side rendering. Ensure Schema is injected via Server Side Rendering (SSR).")
 
@@ -117,15 +112,13 @@ def generate_recommendations(audit_data):
 
 def perform_audit(url, api_key):
     genai.configure(api_key=api_key)
-    # Note: Ensure you have access to gemini-1.5-flash or 1.5-pro. 
-    # 'gemini-2.5-flash' might not exist yet, defaulting to reliable 1.5-flash
-    model = genai.GenerativeModel('gemini-2.5-flash')
+    # FIX: gemini-2.5 does not exist. Corrected to 1.5-flash for stability.
+    model = genai.GenerativeModel('gemini-2.0-flash-exp')
     
     status_text = st.empty()
     status_text.text("Connecting to website...")
     
     try:
-        # Fetch Page
         headers = {'User-Agent': 'Mozilla/5.0 (compatible; AgenticAuditor/1.0)'}
         response = requests.get(url, headers=headers, timeout=10)
         soup = BeautifulSoup(response.content, 'html.parser')
@@ -178,7 +171,6 @@ def perform_audit(url, api_key):
             "manifest": manifest_status
         }
         
-        # Generate Recs
         recs = generate_recommendations(audit_data)
         
         # 5. Gemini Analysis
@@ -203,17 +195,15 @@ def perform_audit(url, api_key):
         
         ### 1. Executive Summary
         - Write exactly 3 short, punchy sentences.
-        - Use **Bold** for key terms (e.g., **autonomous buying**, **lead qualification**).
-        - Tailor the language:
-            - If Store: Focus on lost sales/transactions.
-            - If SaaS/B2B: Focus on lost leads/discovery.
+        - Use **Bold** for key terms.
+        - Tailor the language to the business type.
             
         ### 2. Business Impact Analysis
         - Provide in Bullet Points with brief of your technical observations.
-        - Each bullet must start with a **Bold Issue** (e.g., **Missing ai.txt:**).
-        - Keep each bullet upto 38 words length. Focus on the money/risk.
+        - Each bullet must start with a **Bold Issue**.
+        - Keep each bullet upto 38 words length.
         
-        Do NOT write paragraphs too long. Delivering messages that are easy to understand, thorough but brief, and focused on essential information.
+        Do NOT write paragraphs too long. Delivering messages that are easy to understand.
         """
         
         ai_summary = model.generate_content(prompt).text
@@ -235,17 +225,28 @@ st.sidebar.title("🕵️‍♂️ Audit Controls")
 api_key = st.sidebar.text_input("Gemini API Key", type="password")
 
 # Main Input
-# Use session_state for value to prevent 'sticky' input issues
 if 'current_url' not in st.session_state:
     st.session_state['current_url'] = ""
 
 url_input = st.text_input("Enter Client Website URL", value=st.session_state['current_url'], placeholder="https://www.example-hotel.com")
 
+# --- UI FIX: Create a Container for the Report ---
+# This acts as a dedicated screen area we can wipe clean instantly.
+report_view = st.empty()
+
 if st.button("🚀 Run Full Audit"):
     if not api_key or not url_input:
         st.error("Please provide both API Key and URL.")
     else:
-        # Save current URL to session state
+        # 1. UI FIX: Wipe the old report INSTANTLY
+        report_view.empty()
+        
+        # 2. UI FIX: Clear the data in memory
+        st.session_state['audit_data'] = None
+        st.session_state['recs'] = None
+        st.session_state['ai_summary'] = None
+        
+        # Save current URL
         st.session_state['current_url'] = url_input
         
         # Run Audit
@@ -256,59 +257,61 @@ if st.button("🚀 Run Full Audit"):
             st.session_state['recs'] = recommendations
             st.session_state['ai_summary'] = summary
 
-# --- DISPLAY RESULTS (Outside the button logic so it persists) ---
+# --- DISPLAY RESULTS (Inside the Container) ---
+# We render everything inside 'report_view' so it is strictly controlled.
 if st.session_state['audit_data']:
-    st.success("✅ Audit Complete!")
-    
-    # 1. Graphical Dashboard
-    visuals.display_dashboard(st.session_state['audit_data'])
+    with report_view.container():
+        st.success("✅ Audit Complete!")
+        
+        # 1. Graphical Dashboard
+        visuals.display_dashboard(st.session_state['audit_data'])
 
-    st.divider()  
-    
-    # 2. Text Report
-    st.subheader("📝 Executive Summary")
-    st.write(st.session_state['ai_summary'])
-    
-    st.subheader("🔧 Priority Recommendations")
-    for rec in st.session_state['recs']:
-        st.warning(rec)
+        st.divider()  
         
-    # 3. Excel Report Generation
-    report_dict = {
-        "Metric": ["Target URL", "Tech Stack", "Robots.txt Status", "AI.txt Status", "Schema Objects", "AI Manifest"],
-        "Status": [
-            st.session_state['audit_data']['url'],
-            st.session_state['audit_data']['stack'],
-            st.session_state['audit_data']['gates']['robots.txt'],
-            st.session_state['audit_data']['gates']['ai.txt'],
-            f"{st.session_state['audit_data']['schema_count']} found",
-            st.session_state['audit_data']['manifest']
-        ]
-    }
-    df_report = pd.DataFrame(report_dict)
-    
-    buffer = io.BytesIO()
-    with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-        df_report.to_excel(writer, sheet_name='Audit Summary', index=False)
-        df_recs = pd.DataFrame(st.session_state['recs'], columns=["Actionable Recommendations"])
-        df_recs.to_excel(writer, sheet_name='Action Plan', index=False)
+        # 2. Text Report
+        st.subheader("📝 Executive Summary")
+        st.write(st.session_state['ai_summary'])
         
-    # 4. Buttons (Download & New Audit)
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.download_button(
-            label="📥 Download Excel Report",
-            data=buffer,
-            file_name=f"Agentic_Audit_{int(time.time())}.xlsx",
-            mime="application/vnd.ms-excel"
-        )
+        st.subheader("🔧 Priority Recommendations")
+        for rec in st.session_state['recs']:
+            st.warning(rec)
+            
+        # 3. Excel Report Generation
+        report_dict = {
+            "Metric": ["Target URL", "Tech Stack", "Robots.txt Status", "AI.txt Status", "Schema Objects", "AI Manifest"],
+            "Status": [
+                st.session_state['audit_data']['url'],
+                st.session_state['audit_data']['stack'],
+                st.session_state['audit_data']['gates']['robots.txt'],
+                st.session_state['audit_data']['gates']['ai.txt'],
+                f"{st.session_state['audit_data']['schema_count']} found",
+                st.session_state['audit_data']['manifest']
+            ]
+        }
+        df_report = pd.DataFrame(report_dict)
         
-    with col2:
-        if st.button("🔄 Start New Audit"):
-            # Clear Session State
-            st.session_state['audit_data'] = None
-            st.session_state['recs'] = None
-            st.session_state['ai_summary'] = None
-            st.session_state['current_url'] = ""
-            st.rerun()
+        buffer = io.BytesIO()
+        with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+            df_report.to_excel(writer, sheet_name='Audit Summary', index=False)
+            df_recs = pd.DataFrame(st.session_state['recs'], columns=["Actionable Recommendations"])
+            df_recs.to_excel(writer, sheet_name='Action Plan', index=False)
+            
+        # 4. Buttons (Download & New Audit)
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.download_button(
+                label="📥 Download Excel Report",
+                data=buffer,
+                file_name=f"Agentic_Audit_{int(time.time())}.xlsx",
+                mime="application/vnd.ms-excel"
+            )
+            
+        with col2:
+            if st.button("🔄 Start New Audit"):
+                # Clear Session State
+                st.session_state['audit_data'] = None
+                st.session_state['recs'] = None
+                st.session_state['ai_summary'] = None
+                st.session_state['current_url'] = ""
+                st.rerun()
