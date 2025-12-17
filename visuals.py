@@ -5,7 +5,7 @@ def calculate_score(audit_data):
     """Calculates a score out of 100 based on findings"""
     score = 0
     
-    # 1. Robots.txt
+    # 1. Robots.txt (Foundation)
     if audit_data['gates']['robots.txt'] == "Found":
         score += 20
         
@@ -13,22 +13,22 @@ def calculate_score(audit_data):
     if "Allowed" in audit_data['gates']['ai_access']:
         score += 20
         
-    # 3. Sitemap
+    # 3. Sitemap (Discovery)
     if "Found" in audit_data['gates']['sitemap.xml']:
         score += 20
         
-    # 4. Schema
+    # 4. Schema (Understanding)
     if audit_data['schema_count'] > 0:
         score += 20
         
-    # 5. AI.txt OR Manifest (Bonus points)
+    # 5. AI.txt OR Manifest (Bonus points/Future Proofing)
     if "Found" in audit_data['gates']['ai.txt'] or "Found" in audit_data['manifest']:
         score += 20
         
     return score
 
 def get_score_color(score):
-    """Returns color hex code based on score for the number text"""
+    """Returns color hex code based on score"""
     if score <= 20:
         return "#d90429" # Deep Red
     elif score <= 40:
@@ -41,36 +41,35 @@ def get_score_color(score):
         return "#008000" # Green
 
 def create_gauge_chart(score):
-    """Creates a beautified rounded gauge chart with a 5-step gradient"""
+    """Creates a beautified rounded gauge chart"""
     score_color = get_score_color(score)
 
     fig = go.Figure(go.Indicator(
         mode = "gauge+number",
         value = score,
-        number = {'font': {'color': score_color, 'size': 60}}, # Color and size the score number
+        number = {'font': {'color': score_color, 'size': 90}},
         domain = {'x': [0, 1], 'y': [0, 1]},
         title = {'text': "AI Agentic Readiness Score", 'font': {'size': 22}},
         gauge = {
             'axis': {'range': [None, 100], 'tickwidth': 1, 'tickcolor': "darkblue"},
-            'bar': {'color': score_color, 'thickness': 0.2}, # The tip of the bar matches the score color
+            'bar': {'color': score_color, 'thickness': 0.2},
             'bgcolor': "white",
             'borderwidth': 2,
             'bordercolor': "gray",
             'steps': [
-                {'range': [0, 20], 'color': "#d90429"}, # Deep Red
-                {'range': [20, 40], 'color': "#ef233c"}, # Red
-                {'range': [40, 60], 'color': "#ff8c00"}, # Dark Orange
-                {'range': [60, 80], 'color': "#ffb703"}, # Amber
-                {'range': [80, 100], 'color': "#008000"} # Green
+                {'range': [0, 20], 'color': "#d90429"},
+                {'range': [20, 40], 'color': "#ef233c"},
+                {'range': [40, 60], 'color': "#ff8c00"},
+                {'range': [60, 80], 'color': "#ffb703"},
+                {'range': [80, 100], 'color': "#008000"}
             ],
             'threshold': {
-                'line': {'color': "gray", 'width': 5},
-                'thickness': 0.80,
+                'line': {'color': "Gray", 'width': 4},
+                'thickness': 0.75,
                 'value': score
             }
         }
     ))
-    # Add a sleek layout
     fig.update_layout(height=350, margin=dict(l=30, r=30, t=80, b=30), font={'family': "Arial"})
     return fig
 
@@ -87,49 +86,50 @@ def display_dashboard(audit_data):
         st.plotly_chart(create_gauge_chart(score), use_container_width=True)
         
     with col2:
-        st.markdown("### 🏗️ Tech Stack Detected")
+        # Renamed from "Tech Stack" to "Digital Infrastructure"
+        st.markdown("### 🏗️ Digital Infrastructure")
         st.info(f"{audit_data['stack']}")
         
-        # Universal Messages for All Industries (B2B, B2C, SaaS, etc.)
+        # Universal Messages
         if score < 50:
-            st.error("❌ High Risk: Your digital presence is invisible to AI Agents/LLMs.")
+            st.error("❌ High Risk: Your digital presence is invisible to AI Agents and LLMs.")
         elif score < 80:
             st.warning("⚠️ Partial Readiness: Agents can 'see' you, but cannot effectively 'act'.")
         else:
-            st.success("✅ Congratulations: Fully Discoverable and Retrievable by AI Agents/LLMs")
+            st.success("✅ Congratulations: Fully Discoverable and Retrievable by AI Agents/LLMs! ")
 
     st.divider()
 
     # 3. Status Grid (The "Vertical Cards")
-    st.markdown("### 🛡️ Security & Access Gates")
+    # Renamed Header to Abstract "Access Protocols"
+    st.markdown("### 🛡️ AI Access Protocols")
     
-    # Define status colors/icons
     def get_status_visual(status, label):
         if "Found" in status or "Allowed" in status:
-            return "✅", "PASS", status
+            return "✅", "ACTIVE", status
         elif "Missing" in status:
-            return "❌", "FAIL", "Missing"
+            return "❌", "INACTIVE", "Missing"
         else:
             return "⚠️", "WARN", status
 
     # Create 4 columns for metrics
     m1, m2, m3, m4 = st.columns(4)
     
-    # Robots.txt
-    icon, state, desc = get_status_visual(audit_data['gates']['robots.txt'], "Robots.txt")
-    m1.metric(label="1. Robots.txt", value=state, delta=icon)
+    # 1. Robots.txt -> "Crawlability Status"
+    icon, state, desc = get_status_visual(audit_data['gates']['robots.txt'], "")
+    m1.metric(label="1. Crawlability Status", value=state, delta=icon)
     
-    # AI Access
-    icon, state, desc = get_status_visual(audit_data['gates']['ai_access'], "AI Access")
-    m2.metric(label="2. AI Blocking", value=state, delta=icon)
+    # 2. AI Access -> "AI Model Permission"
+    icon, state, desc = get_status_visual(audit_data['gates']['ai_access'], "")
+    m2.metric(label="2. AI Model Permission", value=state, delta=icon)
     
-    # AI.txt
-    icon, state, desc = get_status_visual(audit_data['gates']['ai.txt'], "ai.txt")
-    m3.metric(label="3. ai.txt File", value=state, delta=icon)
+    # 3. ai.txt -> "Agent Directives"
+    icon, state, desc = get_status_visual(audit_data['gates']['ai.txt'], "")
+    m3.metric(label="3. Agent Directives", value=state, delta=icon)
     
-    # Sitemap
-    icon, state, desc = get_status_visual(audit_data['gates']['sitemap.xml'], "Sitemap")
-    m4.metric(label="4. Sitemap", value=state, delta=icon)
+    # 4. Sitemap -> "Content Discovery"
+    icon, state, desc = get_status_visual(audit_data['gates']['sitemap.xml'], "")
+    m4.metric(label="4. Content Discovery", value=state, delta=icon)
     
     st.divider()
     
@@ -137,21 +137,24 @@ def display_dashboard(audit_data):
     c1, c2 = st.columns(2)
     
     with c1:
-        st.markdown("#### 🧠 Semantic Data (Schema)")
+        # Renamed "Semantic Data (Schema)" to "Contextual Intelligence"
+        st.markdown("#### 🧠 Contextual Intelligence")
         if audit_data['schema_count'] > 0:
-            st.metric(label="Schema Objects", value=audit_data['schema_count'], delta="Active")
-            st.progress(100, text="Data is readable by agents")
+            # Renamed "Schema Objects" to "Data Layers"
+            st.metric(label="Data Layers Detected", value=audit_data['schema_count'], delta="Active")
+            st.progress(100, text="Content is machine-readable")
         else:
-            st.metric(label="Schema Objects", value="0", delta="- Critical")
-            st.progress(0, text="Data is invisible to agents")
+            st.metric(label="Data Layers Detected", value="0", delta="- Critical")
+            st.progress(0, text="Content is unstructured/invisible")
             
     with c2:
-        st.markdown("#### 🆔 App Identity (Manifest)")
+        # Renamed "App Identity (Manifest)" to "Commerce Identity"
+        st.markdown("#### 🆔 Commerce Identity")
         if "Found" in audit_data['manifest']:
-            st.metric(label="Manifest Status", value="Verified", delta="Active")
-            st.progress(100, text="Offers an app-like experience")
+            st.metric(label="Platform Status", value="Verified", delta="Active")
+            st.progress(100, text="Verified Digital Asset")
         else:
-            st.metric(label="Manifest Status", value="Missing", delta="- Warning")
-            st.progress(0, text="Not installable as an app")
+            st.metric(label="Platform Status", value="Unverified", delta="- Warning")
+            st.progress(0, text="Identity file missing")
 
     st.divider()
