@@ -112,8 +112,7 @@ def generate_recommendations(audit_data):
 
 def perform_audit(url, api_key):
     genai.configure(api_key=api_key)
-    # FIX: gemini-2.5 does not exist. Corrected to 1.5-flash for stability.
-    model = genai.GenerativeModel('gemini-2.0-flash-exp')
+    model = genai.GenerativeModel('gemini-2.5-flash')
     
     status_text = st.empty()
     status_text.text("Connecting to website...")
