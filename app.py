@@ -229,26 +229,21 @@ if 'current_url' not in st.session_state:
 
 url_input = st.text_input("Enter Client Website URL", value=st.session_state['current_url'], placeholder="https://www.example-hotel.com")
 
-# --- UI FIX: Create a Container for the Report ---
-# This acts as a dedicated screen area we can wipe clean instantly.
-report_view = st.empty()
-
+# --- UI FIX: Button goes FIRST ---
 if st.button("🚀 Run Full Audit"):
     if not api_key or not url_input:
         st.error("Please provide both API Key and URL.")
     else:
-        # 1. UI FIX: Wipe the old report INSTANTLY
-        report_view.empty()
-        
-        # 2. UI FIX: Clear the data in memory
+        # 1. Clear previous data immediately
         st.session_state['audit_data'] = None
         st.session_state['recs'] = None
         st.session_state['ai_summary'] = None
         
-        # Save current URL
+        # 2. Save URL
         st.session_state['current_url'] = url_input
         
-        # Run Audit
+        # 3. Run Audit
+        # (Status updates will appear right here, below the button)
         data, recommendations, summary = perform_audit(url_input, api_key)
         
         if data:
@@ -256,8 +251,11 @@ if st.button("🚀 Run Full Audit"):
             st.session_state['recs'] = recommendations
             st.session_state['ai_summary'] = summary
 
+# --- UI FIX: Report Container goes SECOND ---
+# Because this is defined AFTER the button, the report will appear BELOW the button.
+report_view = st.empty()
+
 # --- DISPLAY RESULTS (Inside the Container) ---
-# We render everything inside 'report_view' so it is strictly controlled.
 if st.session_state['audit_data']:
     with report_view.container():
         st.success("✅ Audit Complete!")
@@ -300,7 +298,7 @@ if st.session_state['audit_data']:
         
         with col1:
             st.download_button(
-                label="📥 Download Excel Report",
+                label="📥 Download Your Report: Excel",
                 data=buffer,
                 file_name=f"Agentic_Audit_{int(time.time())}.xlsx",
                 mime="application/vnd.ms-excel"
