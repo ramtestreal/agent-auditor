@@ -215,9 +215,9 @@ def perform_audit(url, api_key):
         return None, None, None
 
 # --- UI LAYOUT ---
-st.title("🤖 Agentic Readiness Auditor Pro")
-st.markdown("### AI Transformation Era Upgradation")
-st.info("Check your website is ready for the **AI Agents/LLM Discoverability & Retrievability** (ChatGPT, Gemini, Grok, Claude, LlaMa, Granite etc...).")
+st.title("🤖 AI Agent Readiness Auditor")
+st.markdown("### AI Discoverability Engine")
+st.info("Check your website is ready for the **AI Agents/LLMs Discoverable and Retrievable** (ChatGPT, Gemini, Grok, Claude, LlaMa, Granite etc...).")
 
 # Sidebar
 st.sidebar.title("🕵️‍♂️ Audit Controls")
