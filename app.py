@@ -127,13 +127,14 @@ def perform_audit(url, api_key):
         api_key=api_key,
     )
     
-    # 1. PRIMARY MODEL (Google Gemini 2.0 Flash - Free)
-    # Fast and smart, but sometimes busy.
-    PRIMARY_MODEL = "google/gemini-2.0-flash-exp:free"
-    
-    # 2. BACKUP MODEL (Meta Llama 3 8B - Free)
-    # Reliable fallback if Google is busy.
-    BACKUP_MODEL = "meta-llama/llama-3-8b-instruct:free"
+    # THE "TANK" STRATEGY: List of Free Models to try in order
+    # If #1 fails, it automatically tries #2, then #3.
+    model_list = [
+        "google/gemini-2.0-flash-exp:free",        # Plan A: Google (Fastest)
+        "meta-llama/llama-3.2-11b-vision-instruct:free", # Plan B: Meta (New Llama)
+        "microsoft/phi-3-medium-128k-instruct:free",    # Plan C: Microsoft (Reliable)
+        "qwen/qwen-2-7b-instruct:free"             # Plan D: Qwen (Good backup)
+    ]
     
     status_text = st.empty()
     status_text.text("Connecting to website...")
@@ -194,7 +195,7 @@ def perform_audit(url, api_key):
         
         recs = generate_recommendations(audit_data)
         
-        # 5. OpenRouter AI Analysis (WITH BACKUP LOGIC)
+        # 5. OpenRouter AI Analysis (MULTI-MODEL BACKUP LOGIC)
         status_text.text("Generative AI is formatting the report...")
         
         prompt = f"""
@@ -207,7 +208,8 @@ def perform_audit(url, api_key):
         - Schema Found: {len(schemas)} items.
         - Manifest Status: {manifest_status}
         
-       WEBSITE CONTEXT:
+        
+    WEBSITE CONTEXT:
         {site_context}
         
        YOUR TASK:
@@ -231,25 +233,24 @@ def perform_audit(url, api_key):
         
         Paragraphs should be chunked. Be clear and concise.
         """
+         
+        ai_summary = "Error: Could not generate report."
         
-        # Try Primary Model
-        try:
-            completion = client.chat.completions.create(
-                model=PRIMARY_MODEL,
-                messages=[{"role": "user", "content": prompt}]
-            )
-            ai_summary = completion.choices[0].message.content
-
-        except Exception as e:
-            # If Primary fails (Rate Limit 429), switch to Backup
-            status_text.text("⚠️ Primary AI busy. Switching to Backup Model (Llama 3)...")
-            time.sleep(1) # Breath for a second
-            
-            completion = client.chat.completions.create(
-                model=BACKUP_MODEL,
-                messages=[{"role": "user", "content": prompt}]
-            )
-            ai_summary = completion.choices[0].message.content
+        # Loop through models until one works
+        for model_id in model_list:
+            try:
+                status_text.text(f"Trying AI Model: {model_id.split('/')[1]}...")
+                completion = client.chat.completions.create(
+                    model=model_id,
+                    messages=[{"role": "user", "content": prompt}]
+                )
+                ai_summary = completion.choices[0].message.content
+                status_text.text("Report Generated Successfully!")
+                break # It worked! Exit the loop.
+            except Exception as e:
+                # If this model fails, print error to log (console) and try next
+                print(f"Model {model_id} failed: {e}")
+                continue # Try the next model in the list
         
         status_text.empty()
         return audit_data, recs, ai_summary
@@ -257,7 +258,6 @@ def perform_audit(url, api_key):
     except Exception as e:
         st.error(f"Audit Failed: {str(e)}")
         return None, None, None
-
 # --- SIDEBAR & INPUTS ---
 
 # Sidebar for API Key
