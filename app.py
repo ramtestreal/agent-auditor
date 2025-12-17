@@ -126,8 +126,14 @@ def perform_audit(url, api_key):
         base_url="https://openrouter.ai/api/v1",
         api_key=api_key,
     )
-    # Using the FREE Gemini 2.0 Flash Experimental model
-    MODEL_ID = "google/gemini-2.0-flash-exp:free" 
+    
+    # 1. PRIMARY MODEL (Google Gemini 2.0 Flash - Free)
+    # Fast and smart, but sometimes busy.
+    PRIMARY_MODEL = "google/gemini-2.0-flash-exp:free"
+    
+    # 2. BACKUP MODEL (Meta Llama 3 8B - Free)
+    # Reliable fallback if Google is busy.
+    BACKUP_MODEL = "meta-llama/llama-3-8b-instruct:free"
     
     status_text = st.empty()
     status_text.text("Connecting to website...")
@@ -188,8 +194,8 @@ def perform_audit(url, api_key):
         
         recs = generate_recommendations(audit_data)
         
-        # 5. OpenRouter AI Analysis
-        status_text.text("Generative AI is formatting the report via OpenRouter...")
+        # 5. OpenRouter AI Analysis (WITH BACKUP LOGIC)
+        status_text.text("Generative AI is formatting the report...")
         
         prompt = f"""
         You are a Senior Technical Consultant. Analyze this website for 'Agentic Readiness'.
@@ -201,12 +207,12 @@ def perform_audit(url, api_key):
         - Schema Found: {len(schemas)} items.
         - Manifest Status: {manifest_status}
         
-        WEBSITE CONTEXT:
+       WEBSITE CONTEXT:
         {site_context}
         
-        YOUR TASK:
-        1. IDENTIFY THE BUSINESS TYPE: Use the 'WEBSITE CONTEXT' above.
-		- Is it B2B, SaaS, E-commerce, Training/Education, local business, shops, Blog, or Corporate Service? 
+       YOUR TASK:
+        1. IDENTIFY THE BUSINESS TYPE: Use the 'WEBSITE CONTEXT' above. 
+           - Is it B2B, SaaS, E-commerce, Training/Education, local business, shops, Blog, or Corporate Service? 
            - NOTE: Even if it uses WooCommerce, if the content is about "Training" or "Services" or "product", treat it as Education/Service, NOT a generic store.
         
         2. GENERATE A REPORT IN STRICT MARKDOWN FORMAT:
@@ -214,28 +220,36 @@ def perform_audit(url, api_key):
         ### 1. Executive Summary
         - Write exactly 3 short, punchy sentences.
         - Use **Bold** for key terms (e.g., **autonomous buying**, **lead qualification**).
-       - Tailor the language:
+        - Tailor the language:
             - If Store: Focus on lost sales/transactions.
             - If SaaS/B2B/Services/Solutions: Focus on lost leads/discovery.
             
         ### 2. Business Impact Analysis
         - Provide exactly 3 Bullet Points.
         - Each bullet must start with a **Bold Issue** (e.g., **Missing ai.txt:**).
-        - Keep each bullet under 25 words. Focus on the money/risk.
+        - Keep each bullet under 37 words. Focus on the money/risk.
         
-      Paragraphs should be small small chunks  and comprahansive.
-              """
+        Paragraphs should be chunked. Be clear and concise.
+        """
         
-        # Call OpenRouter API
-        completion = client.chat.completions.create(
-            model=MODEL_ID,
-            messages=[
-                {"role": "system", "content": "You are a helpful AI auditor."},
-                {"role": "user", "content": prompt}
-            ]
-        )
-        
-        ai_summary = completion.choices[0].message.content
+        # Try Primary Model
+        try:
+            completion = client.chat.completions.create(
+                model=PRIMARY_MODEL,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            ai_summary = completion.choices[0].message.content
+
+        except Exception as e:
+            # If Primary fails (Rate Limit 429), switch to Backup
+            status_text.text("⚠️ Primary AI busy. Switching to Backup Model (Llama 3)...")
+            time.sleep(1) # Breath for a second
+            
+            completion = client.chat.completions.create(
+                model=BACKUP_MODEL,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            ai_summary = completion.choices[0].message.content
         
         status_text.empty()
         return audit_data, recs, ai_summary
