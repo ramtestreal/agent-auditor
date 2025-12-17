@@ -62,7 +62,7 @@ def check_security_gates(url):
         gates['robots.txt'] = "Error"
         gates['ai_access'] = "Unknown"
 
-    # 2. Sitemap (Checks both sitemap.xml and sitemaps.xml)
+   # 2. Sitemap (Checks standard, plural, index, and WP native)
     try:
         # Check standard singular version
         s1 = requests.get(f"{domain}/sitemap.xml", timeout=3)
@@ -72,8 +72,8 @@ def check_security_gates(url):
         
         # Check index version (common in Yoast/RankMath)
         s3 = requests.get(f"{domain}/sitemap_index.xml", timeout=3)
-		
-		# Check index version (common in wordpress)
+        
+        # Check WP native version (WordPress 5.5+)
         s4 = requests.get(f"{domain}/wp-sitemap.xml", timeout=3)
 
         if s1.status_code == 200:
@@ -82,13 +82,12 @@ def check_security_gates(url):
             gates['sitemap.xml'] = "Found (sitemaps.xml)"
         elif s3.status_code == 200:
             gates['sitemap.xml'] = "Found (sitemap_index.xml)"
-		elif s4.status_code == 200:
-            gates['sitemap.xml'] = "Found (wp-sitemap.xml.xml)"
+        elif s4.status_code == 200:
+            gates['sitemap.xml'] = "Found (wp-sitemap.xml)"
         else:
             gates['sitemap.xml'] = "Missing"
     except:
         gates['sitemap.xml'] = "Error checking"
-
     # 3. ai.txt (The new standard)
     try:
         a = requests.get(f"{domain}/ai.txt", timeout=3)
