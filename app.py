@@ -119,7 +119,7 @@ def perform_audit(url, api_key):
     genai.configure(api_key=api_key)
     # Note: Ensure you have access to gemini-1.5-flash or 1.5-pro. 
     # 'gemini-2.5-flash' might not exist yet, defaulting to reliable 1.5-flash
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    model = genai.GenerativeModel('gemini-2.5-flash')
     
     status_text = st.empty()
     status_text.text("Connecting to website...")
