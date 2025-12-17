@@ -1,18 +1,29 @@
 import streamlit as st
 import requests
 from bs4 import BeautifulSoup
-import google.generativeai as genai
+from openai import OpenAI  # <--- NEW LIBRARY
 import pandas as pd
 import io
 import time
 import visuals
 
-# --- CONFIGURATION ---
-st.set_page_config(page_title=" AI Agentic Readiness Auditor Pro", page_icon="🕵️‍♂️", layout="wide")
+# --- UI LAYOUT & STATE MANAGEMENT ---
 
-# Sidebar
-st.sidebar.title("🕵️‍♂️ Audit Controls")
-api_key = st.sidebar.text_input("Gemini API Key", type="password")
+# 1. Initialize "Memory" (Session State)
+if 'audit_data' not in st.session_state:
+    st.session_state['audit_data'] = None
+if 'recs' not in st.session_state:
+    st.session_state['recs'] = None
+if 'ai_summary' not in st.session_state:
+    st.session_state['ai_summary'] = None
+if 'current_url' not in st.session_state:
+    st.session_state['current_url'] = ""
+
+st.set_page_config(page_title="Agentic Readiness Auditor Pro", page_icon="🤖", layout="wide")
+
+st.title("🤖 Agentic Readiness Auditor Pro")
+st.markdown("### The Standard for Future Commerce")
+st.info("Check if your client's website is ready for the **Agent Economy** (Mastercard/Visa Agents, ChatGPT, Gemini).")
 
 # --- FUNCTIONS ---
 
@@ -64,16 +75,9 @@ def check_security_gates(url):
 
     # 2. Sitemap (Checks standard, plural, index, and WP native)
     try:
-        # Check standard singular version
         s1 = requests.get(f"{domain}/sitemap.xml", timeout=3)
-        
-        # Check plural version (common in SEO plugins)
         s2 = requests.get(f"{domain}/sitemaps.xml", timeout=3)
-        
-        # Check index version (common in Yoast/RankMath)
         s3 = requests.get(f"{domain}/sitemap_index.xml", timeout=3)
-        
-        # Check WP native version (WordPress 5.5+)
         s4 = requests.get(f"{domain}/wp-sitemap.xml", timeout=3)
 
         if s1.status_code == 200:
@@ -88,7 +92,6 @@ def check_security_gates(url):
             gates['sitemap.xml'] = "Missing"
     except:
         gates['sitemap.xml'] = "Error checking"
-		
 
     # 3. ai.txt (The new standard)
     try:
@@ -118,8 +121,13 @@ def generate_recommendations(audit_data):
     return recs
 
 def perform_audit(url, api_key):
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-2.5-flash')
+    # --- OPENROUTER CONFIGURATION ---
+    client = OpenAI(
+        base_url="https://openrouter.ai/api/v1",
+        api_key=api_key,
+    )
+    # Using the FREE Gemini 2.0 Flash Experimental model
+    MODEL_ID = "google/gemini-2.0-flash-exp:free" 
     
     status_text = st.empty()
     status_text.text("Connecting to website...")
@@ -180,8 +188,9 @@ def perform_audit(url, api_key):
         
         recs = generate_recommendations(audit_data)
         
-        # 5. Gemini Analysis (FORMATTED PROMPT)
-        status_text.text("Generative AI is formatting the report...")
+        # 5. OpenRouter AI Analysis
+        status_text.text("Generative AI is formatting the report via OpenRouter...")
+        
         prompt = f"""
         You are a Senior Technical Consultant. Analyze this website for 'Agentic Readiness'.
         
@@ -195,9 +204,9 @@ def perform_audit(url, api_key):
         WEBSITE CONTEXT:
         {site_context}
         
-       YOUR TASK:
-        1. IDENTIFY THE BUSINESS TYPE: Use the 'WEBSITE CONTEXT' above. 
-           - Is it B2B, SaaS, E-commerce, Training/Education, local business, shops, Blog, or Corporate Service? 
+        YOUR TASK:
+        1. IDENTIFY THE BUSINESS TYPE: Use the 'WEBSITE CONTEXT' above.
+		- Is it B2B, SaaS, E-commerce, Training/Education, local business, shops, Blog, or Corporate Service? 
            - NOTE: Even if it uses WooCommerce, if the content is about "Training" or "Services" or "product", treat it as Education/Service, NOT a generic store.
         
         2. GENERATE A REPORT IN STRICT MARKDOWN FORMAT:
@@ -205,19 +214,28 @@ def perform_audit(url, api_key):
         ### 1. Executive Summary
         - Write exactly 3 short, punchy sentences.
         - Use **Bold** for key terms (e.g., **autonomous buying**, **lead qualification**).
-        - Tailor the language:
+       - Tailor the language:
             - If Store: Focus on lost sales/transactions.
             - If SaaS/B2B/Services/Solutions: Focus on lost leads/discovery.
             
         ### 2. Business Impact Analysis
         - Provide exactly 3 Bullet Points.
         - Each bullet must start with a **Bold Issue** (e.g., **Missing ai.txt:**).
-        - Keep each bullet under 37 words. Focus on the money/risk.
+        - Keep each bullet under 25 words. Focus on the money/risk.
         
-        Paragraphs should be chunked. Be clear and concise.
-        """
+      Paragraphs should be small small chunks  and comprahansive.
+              """
         
-        ai_summary = model.generate_content(prompt).text
+        # Call OpenRouter API
+        completion = client.chat.completions.create(
+            model=MODEL_ID,
+            messages=[
+                {"role": "system", "content": "You are a helpful AI auditor."},
+                {"role": "user", "content": prompt}
+            ]
+        )
+        
+        ai_summary = completion.choices[0].message.content
         
         status_text.empty()
         return audit_data, recs, ai_summary
@@ -226,28 +244,18 @@ def perform_audit(url, api_key):
         st.error(f"Audit Failed: {str(e)}")
         return None, None, None
 
- # --- UI LAYOUT & STATE MANAGEMENT ---
+# --- SIDEBAR & INPUTS ---
 
-# 1. Initialize "Memory" (Session State)
-if 'audit_data' not in st.session_state:
-    st.session_state['audit_data'] = None
-if 'recs' not in st.session_state:
-    st.session_state['recs'] = None
-if 'ai_summary' not in st.session_state:
-    st.session_state['ai_summary'] = None
-if 'current_url' not in st.session_state:
-    st.session_state['current_url'] = ""
+# Sidebar for API Key
+st.sidebar.title("🕵️‍♂️ Audit Controls")
+st.sidebar.markdown("This tool uses **OpenRouter** for free/low-cost AI access.")
+api_key = st.sidebar.text_input("Enter OpenRouter API Key", type="password", help="Get a free key at openrouter.ai")
 
-st.title("🤖 AI Agentic Readiness Auditor Pro")
-st.markdown("### The Standard for Future Commerce")
-st.info("Check Your website is ready for the **AI Agents, LLMs Discoverable & Retrievable** (ChatGPT, Gemini, Google AP2, Grok, Claude, Llama).")
+# Main Input
+url_input = st.text_input("Enter Client Website URL", value=st.session_state['current_url'], placeholder="https://www.example-hotel.com")
 
-# 2. The Input Section (Clean & Simple)
-# We link the value to session_state so it doesn't vanish on refresh
-url_input = st.text_input("Website URL", value=st.session_state['current_url'], placeholder="https://www.domain.com")
-
-# 3. The "Run" Logic
-if st.button("Run Audit"):
+# The "Run" Logic
+if st.button("🚀 Run Full Audit"):
     if not api_key or not url_input:
         st.error("Please provide both API Key and URL.")
     else:
@@ -302,7 +310,7 @@ if st.session_state['audit_data']:
     col1, col2 = st.columns(2)
     with col1:
         st.download_button(
-            label="📥 Download Report: Excel",
+            label="📥 Download Excel Report",
             data=buffer,
             file_name=f"Agentic_Audit_{int(time.time())}.xlsx",
             mime="application/vnd.ms-excel"
