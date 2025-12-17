@@ -8,7 +8,7 @@ import time
 import visuals  # Ensure visuals.py exists in your repo
 
 # --- CONFIGURATION ---
-st.set_page_config(page_title="Agentic Readiness Auditor Pro", page_icon="🤖", layout="wide")
+st.set_page_config(page_title="Agentic Readiness Auditor Pro", page_icon="🕵️‍♂️", layout="wide")
 
 # --- SESSION STATE INITIALIZATION (Crucial for Memory) ---
 if 'audit_data' not in st.session_state:
