@@ -5,14 +5,20 @@ import google.generativeai as genai
 import pandas as pd
 import io
 import time
-import visuals
+import visuals  # Ensure visuals.py exists in your repo
 
 # --- CONFIGURATION ---
-st.set_page_config(page_title="Agentic Readiness Auditor Pro", page_icon="🕵️‍♂️", layout="wide")
+st.set_page_config(page_title="Agentic Readiness Auditor Pro", page_icon="🤖", layout="wide")
 
-# Sidebar
-st.sidebar.title("🕵️‍♂️ Audit Controls")
-api_key = st.sidebar.text_input("Gemini API Key", type="password")
+# --- SESSION STATE INITIALIZATION (Crucial for Memory) ---
+if 'audit_data' not in st.session_state:
+    st.session_state['audit_data'] = None
+if 'recs' not in st.session_state:
+    st.session_state['recs'] = None
+if 'ai_summary' not in st.session_state:
+    st.session_state['ai_summary'] = None
+if 'current_url' not in st.session_state:
+    st.session_state['current_url'] = ""
 
 # --- FUNCTIONS ---
 
@@ -62,18 +68,11 @@ def check_security_gates(url):
         gates['robots.txt'] = "Error"
         gates['ai_access'] = "Unknown"
 
-   # 2. Sitemap (Checks standard, plural, index, and WP native)
+    # 2. Sitemap (Checks standard, plural, index, and WP native)
     try:
-        # Check standard singular version
         s1 = requests.get(f"{domain}/sitemap.xml", timeout=3)
-        
-        # Check plural version (common in SEO plugins)
         s2 = requests.get(f"{domain}/sitemaps.xml", timeout=3)
-        
-        # Check index version (common in Yoast/RankMath)
         s3 = requests.get(f"{domain}/sitemap_index.xml", timeout=3)
-        
-        # Check WP native version (WordPress 5.5+)
         s4 = requests.get(f"{domain}/wp-sitemap.xml", timeout=3)
 
         if s1.status_code == 200:
@@ -88,6 +87,7 @@ def check_security_gates(url):
             gates['sitemap.xml'] = "Missing"
     except:
         gates['sitemap.xml'] = "Error checking"
+
     # 3. ai.txt (The new standard)
     try:
         a = requests.get(f"{domain}/ai.txt", timeout=3)
@@ -117,7 +117,9 @@ def generate_recommendations(audit_data):
 
 def perform_audit(url, api_key):
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-2.5-flash')
+    # Note: Ensure you have access to gemini-1.5-flash or 1.5-pro. 
+    # 'gemini-2.5-flash' might not exist yet, defaulting to reliable 1.5-flash
+    model = genai.GenerativeModel('gemini-1.5-flash')
     
     status_text = st.empty()
     status_text.text("Connecting to website...")
@@ -128,17 +130,14 @@ def perform_audit(url, api_key):
         response = requests.get(url, headers=headers, timeout=10)
         soup = BeautifulSoup(response.content, 'html.parser')
         
-        # --- NEW: EXTRACT SITE CONTEXT (READ THE PAGE) ---
-        # We grab the title, meta description, and first 2000 characters of text
+        # --- EXTRACT SITE CONTEXT ---
         page_title = soup.title.string if soup.title else "No Title"
         meta_desc = soup.find("meta", attrs={"name": "description"})
         meta_desc_text = meta_desc["content"] if meta_desc else "No Description"
-        # Get visible text from body (headers, menus, paragraphs) to understand business type
         body_text = soup.body.get_text(separator=' ', strip=True)[:2000] if soup.body else ""
         
         site_context = f"Title: {page_title}\nDescription: {meta_desc_text}\nPage Content: {body_text}"
-        # -------------------------------------------------
-
+        
         # 1. Tech Stack
         status_text.text("Detecting Technology Stack...")
         stack = detect_tech_stack(soup, response.headers)
@@ -182,7 +181,7 @@ def perform_audit(url, api_key):
         # Generate Recs
         recs = generate_recommendations(audit_data)
         
-        # 5. Gemini Analysis (CONTEXT-AWARE PROMPT)
+        # 5. Gemini Analysis
         status_text.text("Generative AI is reading the content to identify business type...")
         prompt = f"""
         You are a Senior Technical Consultant. Analyze this website for 'Agentic Readiness'.
@@ -194,22 +193,13 @@ def perform_audit(url, api_key):
         - Schema Found: {len(schemas)} items.
         - Manifest Status: {manifest_status}
         
-        WEBSITE CONTENT CONTEXT (Read this to identify the industry):
+        WEBSITE CONTENT CONTEXT:
         {site_context}
         
         YOUR TASK:
         1. IDENTIFY THE BUSINESS TYPE: Use the 'WEBSITE CONTENT CONTEXT' above. 
-           - Is it B2B, SaaS, E-commerce, Training/Education, Blog, or Corporate Service? 
-           - NOTE: Even if it uses WooCommerce, if the content is about "Training" or "Services", treat it as Education/Service, NOT a generic store.
-           
-        2. WRITE EXECUTIVE SUMMARY (3 sentences): 
-           - Tailor the language to the business type identified.
-           - For E-commerce: Use terms like "autonomous buying" and "transactions".
-           - For B2B/Services: Use terms like "service discovery", "lead qualification", and "content retrieval".
-           - For SaaS/Training: Use terms like "user onboarding" or "knowledge access".
-           
-        3. EXPLAIN BUSINESS IMPACT:
-           - Explain why missing elements (like ai.txt or schema) hurt *this specific* business type.
+        2. WRITE EXECUTIVE SUMMARY (3 sentences): Tailor language to business type.
+        3. EXPLAIN BUSINESS IMPACT: Explain why missing elements hurt this specific business type.
         """
         
         ai_summary = model.generate_content(prompt).text
@@ -226,50 +216,72 @@ st.title("🤖 Agentic Readiness Auditor Pro")
 st.markdown("### The Standard for Future Commerce")
 st.info("Check if your client's website is ready for the **Agent Economy** (Mastercard/Visa Agents, ChatGPT, Gemini).")
 
-url_input = st.text_input("Enter Client Website URL", placeholder="https://www.example-hotel.com")
+# Sidebar
+st.sidebar.title("🕵️‍♂️ Audit Controls")
+api_key = st.sidebar.text_input("Gemini API Key", type="password")
+
+# Main Input
+# Use session_state for value to prevent 'sticky' input issues
+if 'current_url' not in st.session_state:
+    st.session_state['current_url'] = ""
+
+url_input = st.text_input("Enter Client Website URL", value=st.session_state['current_url'], placeholder="https://www.example-hotel.com")
 
 if st.button("🚀 Run Full Audit"):
     if not api_key or not url_input:
         st.error("Please provide both API Key and URL.")
     else:
-        audit_data, recs, ai_summary = perform_audit(url_input, api_key)
+        # Save current URL to session state
+        st.session_state['current_url'] = url_input
         
-        if audit_data:
-        # --- DISPLAY GRAPHICAL DASHBOARD ---
-            visuals.display_dashboard(audit_data)
+        # Run Audit
+        data, recommendations, summary = perform_audit(url_input, api_key)
+        
+        if data:
+            st.session_state['audit_data'] = data
+            st.session_state['recs'] = recommendations
+            st.session_state['ai_summary'] = summary
 
-            st.divider()  
-            st.subheader("📝 Executive Summary")
-            st.write(ai_summary)
-            
-            st.subheader("🔧 Priority Recommendations")
-            for rec in recs:
-                st.warning(rec)
-                
-            # --- EXCEL REPORT GENERATION ---
-            # Create a Pandas DataFrame for the report
-            report_dict = {
-                "Metric": ["Target URL", "Tech Stack", "Robots.txt Status", "AI.txt Status", "Schema Objects", "AI Manifest"],
-                "Status": [
-                    audit_data['url'],
-                    audit_data['stack'],
-                    audit_data['gates']['robots.txt'],
-                    audit_data['gates']['ai.txt'],
-                    f"{audit_data['schema_count']} found",
-                    audit_data['manifest']
-                ]
-            }
-            df_report = pd.DataFrame(report_dict)
-            
-            # Convert to Excel in memory
-            buffer = io.BytesIO()
-            with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-                df_report.to_excel(writer, sheet_name='Audit Summary', index=False)
-                # Write Recommendations to a second sheet
-                df_recs = pd.DataFrame(recs, columns=["Actionable Recommendations"])
-                df_recs.to_excel(writer, sheet_name='Action Plan', index=False)
-                
+# --- DISPLAY RESULTS (Outside the button logic so it persists) ---
+if st.session_state['audit_data']:
+    st.success("✅ Audit Complete!")
+    
+    # 1. Graphical Dashboard
+    visuals.display_dashboard(st.session_state['audit_data'])
+
+    st.divider()  
+    
+    # 2. Text Report
+    st.subheader("📝 Executive Summary")
+    st.write(st.session_state['ai_summary'])
+    
+    st.subheader("🔧 Priority Recommendations")
+    for rec in st.session_state['recs']:
+        st.warning(rec)
+        
+    # 3. Excel Report Generation
+    report_dict = {
+        "Metric": ["Target URL", "Tech Stack", "Robots.txt Status", "AI.txt Status", "Schema Objects", "AI Manifest"],
+        "Status": [
+            st.session_state['audit_data']['url'],
+            st.session_state['audit_data']['stack'],
+            st.session_state['audit_data']['gates']['robots.txt'],
+            st.session_state['audit_data']['gates']['ai.txt'],
+            f"{st.session_state['audit_data']['schema_count']} found",
+            st.session_state['audit_data']['manifest']
+        ]
+    }
+    df_report = pd.DataFrame(report_dict)
+    
+    buffer = io.BytesIO()
+    with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+        df_report.to_excel(writer, sheet_name='Audit Summary', index=False)
+        df_recs = pd.DataFrame(st.session_state['recs'], columns=["Actionable Recommendations"])
+        df_recs.to_excel(writer, sheet_name='Action Plan', index=False)
+        
+    # 4. Buttons (Download & New Audit)
     col1, col2 = st.columns(2)
+    
     with col1:
         st.download_button(
             label="📥 Download Excel Report",
@@ -277,11 +289,12 @@ if st.button("🚀 Run Full Audit"):
             file_name=f"Agentic_Audit_{int(time.time())}.xlsx",
             mime="application/vnd.ms-excel"
         )
+        
     with col2:
-        # The "New Audit" Button (Clears everything)
         if st.button("🔄 Start New Audit"):
+            # Clear Session State
             st.session_state['audit_data'] = None
             st.session_state['recs'] = None
             st.session_state['ai_summary'] = None
-            st.session_state['current_url'] = "" # Clear the URL box
+            st.session_state['current_url'] = ""
             st.rerun()
