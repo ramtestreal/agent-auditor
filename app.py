@@ -216,8 +216,8 @@ def perform_audit(url, api_key):
 
 # --- UI LAYOUT ---
 st.title("🤖 Agentic Readiness Auditor Pro")
-st.markdown("### The Standard for Future Commerce")
-st.info("Check if your client's website is ready for the **Agent Economy** (Mastercard/Visa Agents, ChatGPT, Gemini).")
+st.markdown("### AI Transformation Era Upgradation")
+st.info("Check your website is ready for the **AI Agents/LLM Discoverability & Retrievability  ** (ChatGPT, Gemini, Grok, Claude, LlaMa, Granite etc...).")
 
 # Sidebar
 st.sidebar.title("🕵️‍♂️ Audit Controls")
@@ -227,10 +227,10 @@ api_key = st.sidebar.text_input("Gemini API Key", type="password")
 if 'current_url' not in st.session_state:
     st.session_state['current_url'] = ""
 
-url_input = st.text_input("Enter Client Website URL", value=st.session_state['current_url'], placeholder="https://www.example-hotel.com")
+url_input = st.text_input("Website URL", value=st.session_state['current_url'], placeholder="https://www.example.com")
 
 # --- UI FIX: Button goes FIRST ---
-if st.button("🚀 Run Full Audit"):
+if st.button("🚀 Run AI Agent"):
     if not api_key or not url_input:
         st.error("Please provide both API Key and URL.")
     else:
