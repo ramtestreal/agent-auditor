@@ -128,6 +128,17 @@ def perform_audit(url, api_key):
         response = requests.get(url, headers=headers, timeout=10)
         soup = BeautifulSoup(response.content, 'html.parser')
         
+        # --- NEW: EXTRACT SITE CONTEXT (READ THE PAGE) ---
+        # We grab the title, meta description, and first 2000 characters of text
+        page_title = soup.title.string if soup.title else "No Title"
+        meta_desc = soup.find("meta", attrs={"name": "description"})
+        meta_desc_text = meta_desc["content"] if meta_desc else "No Description"
+        # Get visible text from body (headers, menus, paragraphs) to understand business type
+        body_text = soup.body.get_text(separator=' ', strip=True)[:2000] if soup.body else ""
+        
+        site_context = f"Title: {page_title}\nDescription: {meta_desc_text}\nPage Content: {body_text}"
+        # -------------------------------------------------
+
         # 1. Tech Stack
         status_text.text("Detecting Technology Stack...")
         stack = detect_tech_stack(soup, response.headers)
@@ -141,9 +152,22 @@ def perform_audit(url, api_key):
         schemas = soup.find_all('script', type='application/ld+json')
         schema_sample = schemas[0].string[:500] if schemas else "None"
         
-        # 4. AI Manifest
-        manifest_res = requests.get(f"{url.rstrip('/')}/.well-known/ai-plugin.json", timeout=3)
-        manifest_status = "Found" if manifest_res.status_code == 200 else "Missing"
+        # 4. Manifest / Identity Check
+        status_text.text("Verifying Identity Files...")
+        domain = url.rstrip('/')
+        
+        plugin_res = requests.get(f"{domain}/.well-known/ai-plugin.json", timeout=3)
+        web_manifest_res = requests.get(f"{domain}/manifest.json", timeout=3)
+        html_manifest = soup.find("link", rel="manifest")
+        
+        if plugin_res.status_code == 200:
+            manifest_status = "Found (AI Plugin)"
+        elif web_manifest_res.status_code == 200:
+            manifest_status = "Found (Web Manifest)"
+        elif html_manifest:
+            manifest_status = "Found (Linked in HTML)"
+        else:
+            manifest_status = "Missing"
 
         # Compile Data
         audit_data = {
@@ -158,21 +182,39 @@ def perform_audit(url, api_key):
         # Generate Recs
         recs = generate_recommendations(audit_data)
         
-        # 5. Gemini Analysis
-        status_text.text("Generative AI is analyzing the report...")
+        # 5. Gemini Analysis (CONTEXT-AWARE PROMPT)
+        status_text.text("Generative AI is reading the content to identify business type...")
         prompt = f"""
-        Analyze this technical audit for 'Agentic Commerce Readiness'.
-        Target URL: {url}
-        Tech Stack: {stack}
-        Security Gates: {gates}
-        Schema Found: {len(schemas)} items.
-        Manifest: {manifest_status}
+        You are a Senior Technical Consultant. Analyze this website for 'Agentic Readiness'.
         
-        Write a professional Executive Summary (3 sentences) explaining if an AI Agent can buy from this site or not.
-        Then, explain the business impact of the missing elements.
+        TARGET DATA:
+        - URL: {url}
+        - Tech Stack: {stack}
+        - Security Gates: {gates}
+        - Schema Found: {len(schemas)} items.
+        - Manifest Status: {manifest_status}
+        
+        WEBSITE CONTENT CONTEXT (Read this to identify the industry):
+        {site_context}
+        
+        YOUR TASK:
+        1. IDENTIFY THE BUSINESS TYPE: Use the 'WEBSITE CONTENT CONTEXT' above. 
+           - Is it B2B, SaaS, E-commerce, Training/Education, Blog, or Corporate Service? 
+           - NOTE: Even if it uses WooCommerce, if the content is about "Training" or "Services", treat it as Education/Service, NOT a generic store.
+           
+        2. WRITE EXECUTIVE SUMMARY (3 sentences): 
+           - Tailor the language to the business type identified.
+           - For E-commerce: Use terms like "autonomous buying" and "transactions".
+           - For B2B/Services: Use terms like "service discovery", "lead qualification", and "content retrieval".
+           - For SaaS/Training: Use terms like "user onboarding" or "knowledge access".
+           
+        3. EXPLAIN BUSINESS IMPACT:
+           - Explain why missing elements (like ai.txt or schema) hurt *this specific* business type.
         """
+        
         ai_summary = model.generate_content(prompt).text
         
+        status_text.empty()
         return audit_data, recs, ai_summary
 
     except Exception as e:
@@ -227,7 +269,7 @@ if st.button("🚀 Run Full Audit"):
                 df_recs = pd.DataFrame(recs, columns=["Actionable Recommendations"])
                 df_recs.to_excel(writer, sheet_name='Action Plan', index=False)
                 
-col1, col2 = st.columns(2)
+    col1, col2 = st.columns(2)
     with col1:
         st.download_button(
             label="📥 Download Excel Report",
