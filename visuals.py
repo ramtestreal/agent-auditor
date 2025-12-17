@@ -106,9 +106,9 @@ def display_dashboard(audit_data):
     
     def get_status_visual(status, label):
         if "Found" in status or "Allowed" in status:
-            return "✅", "ACTIVE", status
+            return "✅", "Pass", status
         elif "Missing" in status:
-            return "❌", "INACTIVE", "Missing"
+            return "❌", "Fail", "Missing"
         else:
             return "⚠️", "WARN", status
 
